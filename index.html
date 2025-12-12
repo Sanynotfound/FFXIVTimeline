@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FFXIV日志解析工具</title>
+    <!-- 引入 Tailwind CSS 进行快速样式开发 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 Phosphor Icons 图标库 -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    
+    <style>
+        /* Apple News 风格定制 */
+        :root {
+            --apple-bg: #F5F5F7;
+            --apple-card: #FFFFFF;
+            --apple-text: #1D1D1F;
+            --apple-gray: #86868B;
+            --apple-blue: #0071E3;
+            --apple-blue-hover: #0077ED;
+        }
+
+        body {
+            background-color: var(--apple-bg);
+            color: var(--apple-text);
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.04);
+        }
+
+        .btn-primary {
+            background-color: var(--apple-blue);
+            color: white;
+            transition: all 0.2s ease;
+        }
+        
+        .btn-primary:hover {
+            background-color: var(--apple-blue-hover);
+            transform: scale(1.02);
+        }
+        
+        .btn-secondary {
+            background-color: #E8E8ED;
+            color: var(--apple-text);
+            transition: all 0.2s ease;
+        }
+        
+        .btn-secondary:hover {
+            background-color: #D2D2D7;
+        }
+
+        /* 表格动画 */
+        .fade-in-up {
+            animation: fadeInUp 0.5s ease-out forwards;
+            opacity: 0;
+            transform: translateY(10px);
+        }
+
+        @keyframes fadeInUp {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* 隐藏滚动条但保留功能 */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center py-8 px-4 sm:px-6">
+
+    <!-- 顶部标题区域 -->
+    <header class="w-full max-w-4xl text-center mb-8 fade-in-up" style="animation-delay: 0.1s;">
+        <h1 class="text-3xl md:text-4xl font-bold tracking-tight mb-2">FFXIV日志解析工具</h1>
+        <p class="text-[var(--apple-gray)] text-lg font-medium">上传 CSV 日志文件，自动提取关键伤害数据</p>
+    </header>
+
+    <!-- 主要操作区域 -->
+    <main class="w-full max-w-4xl space-y-6">
+        
+        <!-- 上传卡片 -->
+        <div class="glass-card rounded-3xl p-8 text-center transition-all duration-300 hover:shadow-lg fade-in-up" style="animation-delay: 0.2s;">
+            <div id="drop-zone" class="border-2 border-dashed border-gray-300 rounded-2xl p-8 cursor-pointer hover:border-[var(--apple-blue)] hover:bg-blue-50/50 transition-colors group">
+                <input type="file" id="file-input" accept=".csv" class="hidden">
+                <div class="flex flex-col items-center space-y-4">
+                    <div class="w-16 h-16 bg-blue-100 text-[var(--apple-blue)] rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <i class="ph ph-upload-simple text-3xl"></i>
+                    </div>
+                    <div>
+                        <p class="text-lg font-semibold">点击或拖拽上传 CSV 文件</p>
+                        <p class="text-sm text-[var(--apple-gray)] mt-1">支持标准战斗日志格式</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 结果控制栏 (默认隐藏) -->
+        <div id="control-panel" class="hidden flex flex-col sm:flex-row gap-4 justify-between items-center glass-card rounded-2xl p-4 fade-in-up">
+            <div class="flex items-center gap-2 text-sm text-[var(--apple-gray)]">
+                <i class="ph ph-check-circle text-green-500 text-lg"></i>
+                <span id="status-text">解析成功，共找到 0 条数据</span>
+            </div>
+            <div class="flex gap-3 w-full sm:w-auto">
+                <button onclick="resetAll()" class="btn-secondary flex-1 sm:flex-none px-6 py-2.5 rounded-full font-medium text-sm flex items-center justify-center gap-2">
+                    <i class="ph ph-trash"></i> 重置
+                </button>
+                <button onclick="copyResults()" class="btn-primary flex-1 sm:flex-none px-6 py-2.5 rounded-full font-medium text-sm flex items-center justify-center gap-2 shadow-lg shadow-blue-500/30">
+                    <i class="ph ph-copy"></i> 复制结果
+                </button>
+            </div>
+        </div>
+
+        <!-- 结果预览区域 (默认隐藏) -->
+        <div id="result-area" class="hidden glass-card rounded-3xl overflow-hidden fade-in-up shadow-xl">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="border-b border-gray-200 bg-gray-50/50">
+                            <th class="p-4 text-xs font-bold uppercase tracking-wider text-[var(--apple-gray)]">时间</th>
+                            <th class="p-4 text-xs font-bold uppercase tracking-wider text-[var(--apple-gray)]">伤害来源</th>
+                            <th class="p-4 text-xs font-bold uppercase tracking-wider text-[var(--apple-gray)]">技能名称</th>
+                            <th class="p-4 text-xs font-bold uppercase tracking-wider text-[var(--apple-gray)] text-right">原始伤害 (U)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="result-table-body" class="text-sm font-medium">
+                        <!-- 数据将插入这里 -->
+                    </tbody>
+                </table>
+            </div>
+            <!-- 空状态占位 -->
+            <div id="empty-state" class="hidden p-12 text-center text-[var(--apple-gray)]">
+                <i class="ph ph-magnifying-glass text-4xl mb-2 opacity-50"></i>
+                <p>未找到符合格式的伤害数据</p>
+            </div>
+        </div>
+
+    </main>
+
+    <footer class="mt-12 text-center text-xs text-[var(--apple-gray)] opacity-60">
+        <p>Design by 发芽土豆🌱 · 数据可能存在偏差，一切以实战为准。</p>
+    </footer>
+
+    <!-- 提示框 Toast -->
+    <div id="toast" class="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-6 py-3 rounded-full shadow-2xl flex items-center gap-2 transition-all duration-300 opacity-0 translate-y-10 z-50 pointer-events-none">
+        <i class="ph ph-check-circle text-green-400 text-lg"></i>
+        <span id="toast-msg" class="text-sm font-medium">操作成功</span>
+    </div>
+
+    <script>
+        // 核心解析逻辑
+        let parsedData = [];
+
+        const fileInput = document.getElementById('file-input');
+        const dropZone = document.getElementById('drop-zone');
+        const controlPanel = document.getElementById('control-panel');
+        const resultArea = document.getElementById('result-area');
+        const tableBody = document.getElementById('result-table-body');
+        const statusText = document.getElementById('status-text');
+        const emptyState = document.getElementById('empty-state');
+
+        // CSV行解析器 (处理引号)
+        function parseCSVLine(text) {
+            const result = [];
+            let cell = '';
+            let inQuotes = false;
+            
+            for (let i = 0; i < text.length; i++) {
+                const char = text[i];
+                if (char === '"') {
+                    inQuotes = !inQuotes;
+                } else if (char === ',' && !inQuotes) {
+                    result.push(cell);
+                    cell = '';
+                } else {
+                    cell += char;
+                }
+            }
+            result.push(cell);
+            return result.map(c => c.replace(/^"|"$/g, '').trim()); // 去除首尾引号
+        }
+
+        // 解析单行事件逻辑
+        function parseEventString(time, eventStr) {
+            // 1. 过滤掉 "prepares"
+            if (eventStr.includes("prepares")) return null;
+
+            // 2. 提取原始伤害 (U: value)
+            const rawMatch = eventStr.match(/\(U:\s*([\d,]+)/);
+            if (!rawMatch) return null; // 如果没有原始伤害U值，说明不是我们要的行
+            
+            const rawDamage = rawMatch[1]; // 例如 "51684" 或 "115,962"
+
+            // 3. 清理字符串，便于分割
+            // 截取第一个左括号之前的内容，这就是核心事件描述
+            let mainPart = eventStr.split('(')[0].trim();
+            
+            // 4. 分割单词
+            // 示例: "卓异的悲寂 13 出血 玛卡巴卡 Tick 11402"
+            // 示例: "被侵蚀的食罪灵 1 净罪之环 玛卡巴卡 46515"
+            let parts = mainPart.split(/\s+/);
+            
+            if (parts.length < 3) return null; // 格式太短
+
+            // 倒序解析法
+            let actualDamage = parts.pop();
+            
+            // 处理 "Tick" 情况
+            // 如果最后一个是数字，倒数第二个是 Tick，或者当前就是 Tick (虽然一般 Tick 后跟数字)
+            if (parts.length > 0 && parts[parts.length - 1] === 'Tick') {
+                actualDamage = 'Tick ' + actualDamage;
+                parts.pop(); // 移除 'Tick'
+            }
+
+            // 此时 parts 数组剩下的最后一个元素应该是 玩家名 (Target)
+            const target = parts.pop();
+
+            // 再剩下的最后一个元素应该是 技能名 (Skill)
+            // 假设技能名没有空格 (根据示例：净罪之环, 出血, 深渊极光)
+            const skill = parts.pop();
+
+            // 剩下所有的部分组合起来就是 伤害来源 (Source)
+            // 伤害来源可能有空格 (如：被侵蚀的食罪灵 1)
+            const source = parts.join(' ');
+
+            if (!source || !skill) return null;
+
+            return {
+                time: time,
+                source: source,
+                skill: skill,
+                rawDamage: rawDamage
+            };
+        }
+
+        function processFile(file) {
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                const text = e.target.result;
+                const lines = text.split(/\r?\n/);
+                parsedData = [];
+
+                // 从第1行开始（跳过表头，如果有的话）
+                // 简单的判断：如果第一列是 "Time" 则跳过
+                let startIndex = 0;
+                if (lines[0] && lines[0].includes("Time") && lines[0].includes("Event")) {
+                    startIndex = 1;
+                }
+
+                for (let i = startIndex; i < lines.length; i++) {
+                    const line = lines[i].trim();
+                    if (!line) continue;
+
+                    const cols = parseCSVLine(line);
+                    if (cols.length < 2) continue;
+
+                    const time = cols[0];
+                    const eventStr = cols[1];
+
+                    const result = parseEventString(time, eventStr);
+                    if (result) {
+                        parsedData.push(result);
+                    }
+                }
+
+                renderTable();
+            };
+
+            reader.readAsText(file, 'UTF-8'); // 假设是 UTF-8，如果是中文乱码可能需要 GBK
+        }
+
+        function renderTable() {
+            tableBody.innerHTML = '';
+            
+            if (parsedData.length === 0) {
+                controlPanel.classList.remove('hidden');
+                resultArea.classList.remove('hidden');
+                emptyState.classList.remove('hidden');
+                statusText.innerText = "未找到符合的数据";
+                return;
+            }
+
+            controlPanel.classList.remove('hidden');
+            resultArea.classList.remove('hidden');
+            emptyState.classList.add('hidden');
+            statusText.innerText = `解析成功，生成 ${parsedData.length} 条数据`;
+
+            parsedData.forEach((row, index) => {
+                const tr = document.createElement('tr');
+                tr.className = "border-b border-gray-100 hover:bg-blue-50/30 transition-colors";
+                tr.innerHTML = `
+                    <td class="p-4 text-[var(--apple-text)] tabular-nums">${row.time}</td>
+                    <td class="p-4 text-[var(--apple-text)] font-medium">${row.source}</td>
+                    <td class="p-4 text-[var(--apple-text)]"><span class="bg-gray-100 px-2 py-1 rounded text-xs text-gray-600">${row.skill}</span></td>
+                    <td class="p-4 text-[var(--apple-text)] text-right font-bold tabular-nums">${row.rawDamage}</td>
+                `;
+                tableBody.appendChild(tr);
+            });
+        }
+
+        // 复制功能
+        function copyResults() {
+            if (parsedData.length === 0) {
+                showToast("没有数据可复制", "error");
+                return;
+            }
+
+            // 构建 Header
+            let text = "时间\t伤害来源\t技能名称\t原始伤害\n";
+            // 构建 Rows
+            parsedData.forEach(row => {
+                text += `${row.time}\t${row.source}\t${row.skill}\t${row.rawDamage}\n`;
+            });
+
+            // 执行复制
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            document.body.appendChild(textarea);
+            textarea.select();
+            
+            try {
+                document.execCommand('copy');
+                showToast("已复制到剪贴板");
+            } catch (err) {
+                showToast("复制失败，请重试", "error");
+            }
+            
+            document.body.removeChild(textarea);
+        }
+
+        function resetAll() {
+            parsedData = [];
+            fileInput.value = '';
+            controlPanel.classList.add('hidden');
+            resultArea.classList.add('hidden');
+        }
+
+        // 交互逻辑
+        dropZone.addEventListener('click', () => fileInput.click());
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                processFile(e.target.files[0]);
+            }
+        });
+
+        // 拖拽支持
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('bg-blue-50', 'border-[var(--apple-blue)]');
+        });
+
+        dropZone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('bg-blue-50', 'border-[var(--apple-blue)]');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('bg-blue-50', 'border-[var(--apple-blue)]');
+            if (e.dataTransfer.files.length > 0) {
+                processFile(e.dataTransfer.files[0]);
+            }
+        });
+
+        // 提示框逻辑
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            const msg = document.getElementById('toast-msg');
+            const icon = toast.querySelector('i');
+            
+            msg.innerText = message;
+            if (type === 'error') {
+                icon.className = 'ph ph-warning-circle text-red-400 text-lg';
+            } else {
+                icon.className = 'ph ph-check-circle text-green-400 text-lg';
+            }
+
+            toast.classList.remove('opacity-0', 'translate-y-10');
+            
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-10');
+            }, 2500);
+        }
+    </script>
+</body>
+</html>
