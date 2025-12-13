@@ -64,6 +64,20 @@
                 transform: translateY(0);
             }
         }
+
+        /* 复制小图标样式 */
+        .copy-icon-btn {
+            opacity: 0.4;
+            transition: all 0.2s ease;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+        }
+        .copy-icon-btn:hover {
+            opacity: 1;
+            background-color: rgba(0, 113, 227, 0.1);
+            color: var(--apple-blue);
+        }
     </style>
 </head>
 <body class="min-h-screen flex flex-col items-center py-8 px-4 sm:px-6">
@@ -109,7 +123,7 @@
                     <i class="ph ph-trash"></i> 重置
                 </button>
                 <button onclick="copyResults()" class="btn-primary flex-1 sm:flex-none px-6 py-2.5 rounded-full font-medium text-sm flex items-center justify-center gap-2 shadow-lg shadow-blue-500/30">
-                    <i class="ph ph-copy"></i> 复制结果
+                    <i class="ph ph-copy"></i> 复制全部结果
                 </button>
             </div>
         </div>
@@ -120,10 +134,42 @@
                 <table class="w-full text-left border-collapse">
                     <thead>
                         <tr class="border-b border-gray-200 bg-gray-50/50">
-                            <th class="p-4 text-xs font-bold uppercase tracking-wider text-[var(--apple-gray)] w-32">时间</th>
-                            <th class="p-4 text-xs font-bold uppercase tracking-wider text-[var(--apple-gray)]">伤害来源</th>
-                            <th class="p-4 text-xs font-bold uppercase tracking-wider text-[var(--apple-gray)]">技能名称</th>
-                            <th class="p-4 text-xs font-bold uppercase tracking-wider text-[var(--apple-gray)] text-right">实际伤害 (U)</th>
+                            <!-- 时间列 -->
+                            <th class="p-4 text-xs font-bold uppercase tracking-wider text-[var(--apple-gray)] w-32">
+                                <div class="flex items-center gap-1">
+                                    时间
+                                    <button onclick="copyColumn('time', event)" class="copy-icon-btn" title="仅复制时间列">
+                                        <i class="ph ph-copy text-sm"></i>
+                                    </button>
+                                </div>
+                            </th>
+                            <!-- 伤害来源列 -->
+                            <th class="p-4 text-xs font-bold uppercase tracking-wider text-[var(--apple-gray)]">
+                                <div class="flex items-center gap-1">
+                                    伤害来源
+                                    <button onclick="copyColumn('source', event)" class="copy-icon-btn" title="仅复制伤害来源">
+                                        <i class="ph ph-copy text-sm"></i>
+                                    </button>
+                                </div>
+                            </th>
+                            <!-- 技能名称列 -->
+                            <th class="p-4 text-xs font-bold uppercase tracking-wider text-[var(--apple-gray)]">
+                                <div class="flex items-center gap-1">
+                                    技能名称
+                                    <button onclick="copyColumn('skill', event)" class="copy-icon-btn" title="仅复制技能名称">
+                                        <i class="ph ph-copy text-sm"></i>
+                                    </button>
+                                </div>
+                            </th>
+                            <!-- 实际伤害列 -->
+                            <th class="p-4 text-xs font-bold uppercase tracking-wider text-[var(--apple-gray)] text-right">
+                                <div class="flex items-center justify-end gap-1">
+                                    实际伤害
+                                    <button onclick="copyColumn('damage', event)" class="copy-icon-btn mr-1" title="仅复制伤害数值">
+                                        <i class="ph ph-copy text-sm"></i>
+                                    </button>
+                                </div>
+                            </th>
                         </tr>
                     </thead>
                     <tbody id="result-table-body" class="text-sm font-medium">
@@ -149,6 +195,7 @@
                 <li>在 <span class="font-medium bg-gray-200 px-1 rounded">事件 (Events)</span> 视图中，筛选特定的单名玩家。</li>
                 <li>点击页面底部的 <span class="font-medium bg-gray-200 px-1 rounded">CSV</span> 按钮导出文件。</li>
                 <li>将导出的 CSV 文件拖入上方区域即可解析。</li>
+                <li><span class="text-gray-500">如果对副本及伤害数值有意见的话你可以先攻击我最喜欢的游戏制作人吉田直树和丝瓜卡夫卡🌹</span></li>
             </ol>
         </div>
 
@@ -454,6 +501,12 @@
             return output;
         }
 
+        // 辅助函数：格式化时间显示 (去除毫秒)
+        function formatTimeDisplay(timeStr) {
+            if (!timeStr) return "";
+            return timeStr.split('.')[0];
+        }
+
         function renderTable() {
             tableBody.innerHTML = '';
             
@@ -473,14 +526,67 @@
             parsedRows.forEach(row => {
                 const tr = document.createElement('tr');
                 tr.className = "border-b border-gray-100 hover:bg-blue-50/30 transition-colors";
+                // 使用优化后的时间显示
+                const displayTime = formatTimeDisplay(row.time);
+                
                 tr.innerHTML = `
-                    <td class="p-4 text-[var(--apple-text)] tabular-nums">${row.time}</td>
+                    <td class="p-4 text-[var(--apple-text)] tabular-nums">${displayTime}</td>
                     <td class="p-4 text-[var(--apple-text)] font-medium">${row.source}</td>
                     <td class="p-4 text-[var(--apple-text)]"><span class="bg-gray-100 px-2 py-1 rounded text-xs text-gray-600">${row.skill}</span></td>
                     <td class="p-4 text-[var(--apple-text)] text-right font-bold tabular-nums">${row.displayDamage}</td>
                 `;
                 tableBody.appendChild(tr);
             });
+        }
+
+        // 复制单列数据的函数
+        function copyColumn(type, event) {
+            // 阻止事件冒泡，防止触发潜在的其他点击事件
+            if(event) event.stopPropagation();
+
+            if (parsedRows.length === 0) {
+                showToast("没有数据可复制", "error");
+                return;
+            }
+
+            let text = "";
+            // 根据类型选择数据
+            parsedRows.forEach(row => {
+                let content = "";
+                switch(type) {
+                    case 'time':
+                        // 复制单列时间时也使用简化格式
+                        content = formatTimeDisplay(row.time);
+                        break;
+                    case 'source':
+                        content = row.source;
+                        break;
+                    case 'skill':
+                        content = row.skill;
+                        break;
+                    case 'damage':
+                        content = row.displayDamage;
+                        break;
+                }
+                text += `${content}\n`;
+            });
+
+            performCopy(text, `已复制${type === 'time' ? '时间' : type === 'source' ? '来源' : type === 'skill' ? '技能名' : '伤害值'}列`);
+        }
+
+        // 通用复制执行函数
+        function performCopy(text, successMsg) {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            document.body.appendChild(textarea);
+            textarea.select();
+            try {
+                document.execCommand('copy');
+                showToast(successMsg);
+            } catch (err) {
+                showToast("复制失败", "error");
+            }
+            document.body.removeChild(textarea);
         }
 
         function copyResults() {
@@ -490,20 +596,11 @@
             }
             let text = "时间\t伤害来源\t技能名称\t实际伤害\n";
             parsedRows.forEach(row => {
-                text += `${row.time}\t${row.source}\t${row.skill}\t${row.displayDamage}\n`;
+                // 完整复制时，时间也使用简化格式以保持一致
+                text += `${formatTimeDisplay(row.time)}\t${row.source}\t${row.skill}\t${row.displayDamage}\n`;
             });
 
-            const textarea = document.createElement('textarea');
-            textarea.value = text;
-            document.body.appendChild(textarea);
-            textarea.select();
-            try {
-                document.execCommand('copy');
-                showToast("已复制到剪贴板");
-            } catch (err) {
-                showToast("复制失败", "error");
-            }
-            document.body.removeChild(textarea);
+            performCopy(text, "已复制全部结果");
         }
 
         function resetAll() {
