@@ -4,16 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FFXIV日志解析工具</title>
-    <!-- 引入 Tailwind CSS 进行快速样式开发 -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- 引入 Phosphor Icons 图标库 -->
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     
     <style>
-        /* Apple News 风格定制 */
         :root {
             --apple-bg: #F5F5F7;
-            --apple-card: #FFFFFF;
             --apple-text: #1D1D1F;
             --apple-gray: #86868B;
             --apple-blue: #0071E3;
@@ -56,7 +52,6 @@
             background-color: #D2D2D7;
         }
 
-        /* 表格动画 */
         .fade-in-up {
             animation: fadeInUp 0.5s ease-out forwards;
             opacity: 0;
@@ -69,27 +64,19 @@
                 transform: translateY(0);
             }
         }
-
-        /* 隐藏滚动条但保留功能 */
-        .no-scrollbar::-webkit-scrollbar {
-            display: none;
-        }
-        .no-scrollbar {
-            -ms-overflow-style: none;
-            scrollbar-width: none;
-        }
     </style>
 </head>
 <body class="min-h-screen flex flex-col items-center py-8 px-4 sm:px-6">
 
     <!-- 顶部标题区域 -->
-    <header class="w-full max-w-4xl text-center mb-8 fade-in-up" style="animation-delay: 0.1s;">
+    <header class="w-full max-w-5xl text-center mb-8 fade-in-up" style="animation-delay: 0.1s;">
         <h1 class="text-3xl md:text-4xl font-bold tracking-tight mb-2">FFXIV日志解析工具</h1>
+        <!-- 3. 恢复副标题 -->
         <p class="text-[var(--apple-gray)] text-lg font-medium">上传 CSV 日志文件，自动提取关键伤害数据</p>
     </header>
 
     <!-- 主要操作区域 -->
-    <main class="w-full max-w-4xl space-y-6">
+    <main class="w-full max-w-5xl space-y-6">
         
         <!-- 上传卡片 -->
         <div class="glass-card rounded-3xl p-8 text-center transition-all duration-300 hover:shadow-lg fade-in-up" style="animation-delay: 0.2s;">
@@ -101,17 +88,23 @@
                     </div>
                     <div>
                         <p class="text-lg font-semibold">点击或拖拽上传 CSV 文件</p>
+                        <!-- 4. 修改上传文案 -->
                         <p class="text-sm text-[var(--apple-gray)] mt-1">支持标准战斗日志格式</p>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- 结果控制栏 (默认隐藏) -->
+        <!-- 结果控制栏 -->
         <div id="control-panel" class="hidden flex flex-col sm:flex-row gap-4 justify-between items-center glass-card rounded-2xl p-4 fade-in-up">
-            <div class="flex items-center gap-2 text-sm text-[var(--apple-gray)]">
-                <i class="ph ph-check-circle text-green-500 text-lg"></i>
-                <span id="status-text">解析成功，共找到 0 条数据</span>
+            <div class="flex flex-col sm:flex-row items-center gap-2 sm:gap-4 text-sm text-[var(--apple-gray)]">
+                <div class="flex items-center gap-1">
+                    <i class="ph ph-check-circle text-green-500 text-lg"></i>
+                    <span id="status-text">解析完成</span>
+                </div>
+                <div id="player-badge" class="hidden px-2 py-0.5 bg-blue-100 text-blue-700 rounded-md font-medium text-xs">
+                    玩家: <span id="player-name-display">--</span>
+                </div>
             </div>
             <div class="flex gap-3 w-full sm:w-auto">
                 <button onclick="resetAll()" class="btn-secondary flex-1 sm:flex-none px-6 py-2.5 rounded-full font-medium text-sm flex items-center justify-center gap-2">
@@ -123,16 +116,16 @@
             </div>
         </div>
 
-        <!-- 结果预览区域 (默认隐藏) -->
+        <!-- 结果预览区域 -->
         <div id="result-area" class="hidden glass-card rounded-3xl overflow-hidden fade-in-up shadow-xl">
             <div class="overflow-x-auto">
                 <table class="w-full text-left border-collapse">
                     <thead>
                         <tr class="border-b border-gray-200 bg-gray-50/50">
-                            <th class="p-4 text-xs font-bold uppercase tracking-wider text-[var(--apple-gray)]">时间</th>
+                            <th class="p-4 text-xs font-bold uppercase tracking-wider text-[var(--apple-gray)] w-32">时间</th>
                             <th class="p-4 text-xs font-bold uppercase tracking-wider text-[var(--apple-gray)]">伤害来源</th>
                             <th class="p-4 text-xs font-bold uppercase tracking-wider text-[var(--apple-gray)]">技能名称</th>
-                            <th class="p-4 text-xs font-bold uppercase tracking-wider text-[var(--apple-gray)] text-right">原始伤害 (U)</th>
+                            <th class="p-4 text-xs font-bold uppercase tracking-wider text-[var(--apple-gray)] text-right">实际伤害 (U)</th>
                         </tr>
                     </thead>
                     <tbody id="result-table-body" class="text-sm font-medium">
@@ -140,28 +133,44 @@
                     </tbody>
                 </table>
             </div>
-            <!-- 空状态占位 -->
+            <!-- 空状态 -->
             <div id="empty-state" class="hidden p-12 text-center text-[var(--apple-gray)]">
                 <i class="ph ph-magnifying-glass text-4xl mb-2 opacity-50"></i>
                 <p>未找到符合格式的伤害数据</p>
             </div>
         </div>
 
+        <!-- 1. 使用说明卡片移动到底部，并与上方容器宽度一致 -->
+        <div class="glass-card rounded-2xl p-4 md:p-6 text-left w-full border border-blue-100/50 fade-in-up" style="animation-delay: 0.3s;">
+            <h3 class="text-sm font-bold text-[var(--apple-blue)] uppercase tracking-wide mb-2 flex items-center gap-2">
+                <i class="ph ph-info"></i> 使用说明
+            </h3>
+            <ol class="list-decimal list-inside text-sm text-[var(--apple-text)] space-y-1.5 leading-relaxed">
+                <!-- 2. 说明文本修改 -->
+                <li>打开 <span class="font-medium bg-gray-200 px-1 rounded">fflogs.com</span>，进入战斗记录页面。</li>
+                <li>点击 <span class="font-medium bg-gray-200 px-1 rounded">受到伤害 (Damage Taken)</span> 选项卡。</li>
+                <li>在 <span class="font-medium bg-gray-200 px-1 rounded">事件 (Events)</span> 视图中，筛选特定的单名玩家。</li>
+                <li>点击页面底部的 <span class="font-medium bg-gray-200 px-1 rounded">CSV</span> 按钮导出文件。</li>
+                <li>将导出的 CSV 文件拖入上方区域即可解析。</li>
+            </ol>
+        </div>
+
     </main>
 
-    <footer class="mt-12 text-center text-xs text-[var(--apple-gray)] opacity-60">
-        <p>Design by 发芽土豆🌱 · 数据可能存在偏差，一切以实战为准。</p>
+    <footer class="mt-auto py-8 text-center text-xs text-[var(--apple-gray)] opacity-60">
+        <p>Design by 发芽土豆🌱 · 数据可能存在偏差，一切以实际为准。</p>
     </footer>
 
-    <!-- 提示框 Toast -->
+    <!-- Toast -->
     <div id="toast" class="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-6 py-3 rounded-full shadow-2xl flex items-center gap-2 transition-all duration-300 opacity-0 translate-y-10 z-50 pointer-events-none">
         <i class="ph ph-check-circle text-green-400 text-lg"></i>
         <span id="toast-msg" class="text-sm font-medium">操作成功</span>
     </div>
 
     <script>
-        // 核心解析逻辑
-        let parsedData = [];
+        let parsedRows = [];
+        let detectedPlayerName = "";
+        let knownSkills = new Set(["Combined DoTs"]); // 预设系统技能名
 
         const fileInput = document.getElementById('file-input');
         const dropZone = document.getElementById('drop-zone');
@@ -170,122 +179,279 @@
         const tableBody = document.getElementById('result-table-body');
         const statusText = document.getElementById('status-text');
         const emptyState = document.getElementById('empty-state');
+        const playerBadge = document.getElementById('player-badge');
+        const playerNameDisplay = document.getElementById('player-name-display');
 
-        // CSV行解析器 (处理引号)
+        // CSV 行解析 (处理引号)
         function parseCSVLine(text) {
             const result = [];
             let cell = '';
             let inQuotes = false;
-            
             for (let i = 0; i < text.length; i++) {
                 const char = text[i];
-                if (char === '"') {
-                    inQuotes = !inQuotes;
-                } else if (char === ',' && !inQuotes) {
-                    result.push(cell);
-                    cell = '';
-                } else {
-                    cell += char;
-                }
+                if (char === '"') inQuotes = !inQuotes;
+                else if (char === ',' && !inQuotes) {
+                    result.push(cell); cell = '';
+                } else cell += char;
             }
             result.push(cell);
-            return result.map(c => c.replace(/^"|"$/g, '').trim()); // 去除首尾引号
+            return result.map(c => c.replace(/^"|"$/g, '').trim());
         }
 
-        // 解析单行事件逻辑
-        function parseEventString(time, eventStr) {
-            // 1. 过滤掉 "prepares"
-            if (eventStr.includes("prepares")) return null;
+        // 步骤1: 预扫描 - 寻找玩家ID和技能库
+        function preScanFile(lines) {
+            detectedPlayerName = "";
+            knownSkills = new Set(["Combined DoTs"]);
+            
+            // 简单的统计，以防有多个 on Target 的情况，取出现最多的
+            const playerCounts = {};
 
-            // 2. 提取原始伤害 (U: value)
-            const rawMatch = eventStr.match(/\(U:\s*([\d,]+)/);
-            if (!rawMatch) return null; // 如果没有原始伤害U值，说明不是我们要的行
-            
-            const rawDamage = rawMatch[1]; // 例如 "51684" 或 "115,962"
+            lines.forEach(line => {
+                const cols = parseCSVLine(line);
+                if (cols.length < 2) return;
+                const eventStr = cols[1];
 
-            // 3. 清理字符串，便于分割
-            // 截取第一个左括号之前的内容，这就是核心事件描述
-            let mainPart = eventStr.split('(')[0].trim();
-            
-            // 4. 分割单词
-            // 示例: "卓异的悲寂 13 出血 玛卡巴卡 Tick 11402"
-            // 示例: "被侵蚀的食罪灵 1 净罪之环 玛卡巴卡 46515"
-            let parts = mainPart.split(/\s+/);
-            
-            if (parts.length < 3) return null; // 格式太短
+                // 匹配: Source prepares Skill on Player ...
+                // 这里的正则假设 ... prepares (技能) on (玩家) 数字 ...
+                const prepMatch = eventStr.match(/ prepares\s+(.*?)\s+on\s+(.*?)\s+\d/);
+                if (prepMatch) {
+                    const skill = prepMatch[1].trim();
+                    const player = prepMatch[2].trim();
+                    knownSkills.add(skill);
+                    
+                    playerCounts[player] = (playerCounts[player] || 0) + 1;
+                }
+            });
 
-            // 倒序解析法
-            let actualDamage = parts.pop();
+            // 确定玩家名 (取出现次数最多的，或者唯一的)
+            let maxCount = 0;
+            for (const [player, count] of Object.entries(playerCounts)) {
+                if (count > maxCount) {
+                    maxCount = count;
+                    detectedPlayerName = player;
+                }
+            }
             
-            // 处理 "Tick" 情况
-            // 如果最后一个是数字，倒数第二个是 Tick，或者当前就是 Tick (虽然一般 Tick 后跟数字)
-            if (parts.length > 0 && parts[parts.length - 1] === 'Tick') {
-                actualDamage = 'Tick ' + actualDamage;
-                parts.pop(); // 移除 'Tick'
+            console.log("Detected Player:", detectedPlayerName);
+            console.log("Learned Skills:", knownSkills);
+        }
+
+        // 步骤2: 解析单行 (核心逻辑)
+        function parseLine(time, eventStr) {
+            // 必须有 U 值才是伤害行 (Combined DoTs 的 Summary 行也有 U，但我们稍后处理)
+            const uMatch = eventStr.match(/\(U:\s*([\d,]+)/);
+            if (!uMatch) return null;
+            
+            const rawU = parseInt(uMatch[1].replace(/,/g, ''), 10);
+
+            // 移除 (U:...) 及其后面的内容，还有 (A:...)
+            // 例子: ... 11402 (A: 13986) (U: 34780)... -> ... 11402
+            let cleanStr = eventStr.split(/\(U:/)[0];
+            cleanStr = cleanStr.replace(/\(A:.*?\)/g, '').trim();
+
+            // 如果没有探测到玩家名，尝试最后的兜底逻辑(假设空格分割)
+            if (!detectedPlayerName) {
+                // 这是一个非常不安全的兜底，但在没 scan 到 prepares 时只能这样
+                const parts = cleanStr.split(/\s+/);
+                const damagePart = parts.pop();
+                const playerPart = parts.pop(); 
+                // 只能假设倒数第二个是玩家
+                return { time, source: "Unknown", skill: "Unknown", player: playerPart, rawU, isTick: damagePart.includes("Tick"), damageText: damagePart };
             }
 
-            // 此时 parts 数组剩下的最后一个元素应该是 玩家名 (Target)
-            const target = parts.pop();
+            // 使用玩家名作为锚点进行分割
+            // Event: Source [prepares] Skill [on] Player Damage
+            // Combined: Multiple Enemies Combined DoTs Player Tick Damage
+            // Standard: Source Skill Player Damage
+            
+            // 我们只关心"输出行"，即没有 "prepares" 的行 (除了 Combined DoTs 的 summary 行)
+            // 但是 Combined DoTs 也没有 prepares。
+            
+            if (eventStr.includes(" prepares ")) return null; // 忽略准备行
 
-            // 再剩下的最后一个元素应该是 技能名 (Skill)
-            // 假设技能名没有空格 (根据示例：净罪之环, 出血, 深渊极光)
-            const skill = parts.pop();
+            // 寻找玩家名的位置
+            const playerIndex = cleanStr.indexOf(detectedPlayerName);
+            if (playerIndex === -1) return null; // 这一行没有当前玩家，跳过
 
-            // 剩下所有的部分组合起来就是 伤害来源 (Source)
-            // 伤害来源可能有空格 (如：被侵蚀的食罪灵 1)
-            const source = parts.join(' ');
+            // 切割
+            const leftPart = cleanStr.substring(0, playerIndex).trim(); // 来源 + 技能
+            const rightPart = cleanStr.substring(playerIndex + detectedPlayerName.length).trim(); // 伤害数值 (Tick xxx)
 
-            if (!source || !skill) return null;
+            // 解析右边: 伤害
+            const isTick = rightPart.startsWith("Tick");
+            
+            // 解析左边: 来源 + 技能
+            // 难点: "Sugar Riot 13 Mousse Mural" -> Source: Sugar Riot 13, Skill: Mousse Mural
+            // 策略: 
+            // 1. 如果左边包含 "Multiple Enemies Combined DoTs"，这是特例
+            if (leftPart.includes("Multiple Enemies Combined DoTs")) {
+                return {
+                    time,
+                    source: "Multiple Enemies",
+                    skill: "Combined DoTs",
+                    player: detectedPlayerName,
+                    rawU: rawU,
+                    isTick: true,
+                    isCombinedSummary: true // 标记这是总汇行
+                };
+            }
+
+            // 2. 尝试从已知技能库匹配 (倒序匹配最长技能名)
+            let source = leftPart;
+            let skill = "Unknown";
+            
+            let foundSkill = false;
+            // 将 Set 转为 Array 并按长度倒序，防止 "Fire" 匹配了 "Fire III" 的一部分
+            const sortedSkills = Array.from(knownSkills).sort((a, b) => b.length - a.length);
+            
+            for (const s of sortedSkills) {
+                if (leftPart.endsWith(s)) {
+                    skill = s;
+                    source = leftPart.substring(0, leftPart.length - s.length).trim();
+                    foundSkill = true;
+                    break;
+                }
+            }
+
+            // 3. 如果没匹配到，使用简单的空格分割兜底 (取最后一个词为技能)
+            if (!foundSkill) {
+                const parts = leftPart.split(/\s+/);
+                if (parts.length > 1) {
+                    skill = parts.pop();
+                    source = parts.join(" ");
+                } else {
+                    skill = leftPart; // 只有一个词，既是来源也是技能? 不太可能，暂且这样
+                    source = "Unknown";
+                }
+            }
 
             return {
-                time: time,
-                source: source,
-                skill: skill,
-                rawDamage: rawDamage
+                time,
+                source,
+                skill,
+                player: detectedPlayerName,
+                rawU,
+                isTick
             };
         }
 
         function processFile(file) {
             const reader = new FileReader();
-            
             reader.onload = function(e) {
                 const text = e.target.result;
-                const lines = text.split(/\r?\n/);
-                parsedData = [];
+                const lines = text.split(/\r?\n/).filter(line => line.trim() !== "");
+                
+                // 跳过表头
+                let startIdx = 0;
+                if (lines[0] && lines[0].includes("Time")) startIdx = 1;
 
-                // 从第1行开始（跳过表头，如果有的话）
-                // 简单的判断：如果第一列是 "Time" 则跳过
-                let startIndex = 0;
-                if (lines[0] && lines[0].includes("Time") && lines[0].includes("Event")) {
-                    startIndex = 1;
+                const dataLines = lines.slice(startIdx);
+
+                // Pass 1: Scan
+                preScanFile(dataLines);
+
+                if (detectedPlayerName) {
+                    playerBadge.classList.remove('hidden');
+                    playerNameDisplay.innerText = detectedPlayerName;
+                } else {
+                    playerBadge.classList.add('hidden');
                 }
 
-                for (let i = startIndex; i < lines.length; i++) {
-                    const line = lines[i].trim();
-                    if (!line) continue;
-
+                // Pass 2: Parse individual lines
+                let rawParsedEvents = [];
+                dataLines.forEach(line => {
                     const cols = parseCSVLine(line);
-                    if (cols.length < 2) continue;
+                    if (cols.length < 2) return;
+                    const parsed = parseLine(cols[0], cols[1]);
+                    if (parsed) rawParsedEvents.push(parsed);
+                });
 
-                    const time = cols[0];
-                    const eventStr = cols[1];
-
-                    const result = parseEventString(time, eventStr);
-                    if (result) {
-                        parsedData.push(result);
-                    }
-                }
-
+                // Pass 3: Grouping & Combined DoTs Logic
+                parsedRows = processGroups(rawParsedEvents);
+                
                 renderTable();
             };
+            reader.readAsText(file, 'UTF-8');
+        }
 
-            reader.readAsText(file, 'UTF-8'); // 假设是 UTF-8，如果是中文乱码可能需要 GBK
+        // 步骤3: 分组与聚合
+        function processGroups(events) {
+            const output = [];
+            // 按时间分组
+            const groups = {}; // { "00:00.000": [event1, event2...] }
+            
+            events.forEach(ev => {
+                if (!groups[ev.time]) groups[ev.time] = [];
+                groups[ev.time].push(ev);
+            });
+
+            const uniqueTimes = [...new Set(events.map(e => e.time))];
+
+            uniqueTimes.forEach(time => {
+                const groupEvents = groups[time];
+                
+                // 检查是否有 Combined DoTs 的 Summary 行
+                const summaryEvent = groupEvents.find(e => e.isCombinedSummary);
+
+                if (summaryEvent) {
+                    // 如果有 Combined DoTs
+                    // 逻辑: 统计该组内所有 *其他* Tick 行的 U 值之和
+                    let totalU = 0;
+                    
+                    groupEvents.forEach(e => {
+                        if (!e.isCombinedSummary && e.isTick) {
+                            totalU += e.rawU;
+                        }
+                    });
+
+                    // 构造新的输出行
+                    const finalU = totalU > 0 ? totalU : summaryEvent.rawU;
+
+                    output.push({
+                        time: time,
+                        source: "Multiple Enemies",
+                        skill: "Combined DoTs",
+                        // 5. 不显示 Tick 前缀，仅显示数值
+                        displayDamage: `${finalU}`,
+                        rawU: finalU
+                    });
+
+                    // 如果组内有 非Tick 的事件 (例如同时吃了一个直伤AOE)，保留
+                    groupEvents.forEach(e => {
+                        if (!e.isCombinedSummary && !e.isTick) {
+                            output.push({
+                                time: e.time,
+                                source: e.source,
+                                skill: e.skill,
+                                // 5. 不显示 Tick 前缀，仅显示数值
+                                displayDamage: `${e.rawU}`,
+                                rawU: e.rawU
+                            });
+                        }
+                    });
+
+                } else {
+                    // 没有 Combined DoTs，正常输出所有行
+                    groupEvents.forEach(e => {
+                        output.push({
+                            time: e.time,
+                            source: e.source,
+                            skill: e.skill,
+                            // 5. 不显示 Tick 前缀，仅显示数值 (即使是 Tick 行)
+                            displayDamage: `${e.rawU}`,
+                            rawU: e.rawU
+                        });
+                    });
+                }
+            });
+
+            return output;
         }
 
         function renderTable() {
             tableBody.innerHTML = '';
             
-            if (parsedData.length === 0) {
+            if (parsedRows.length === 0) {
                 controlPanel.classList.remove('hidden');
                 resultArea.classList.remove('hidden');
                 emptyState.classList.remove('hidden');
@@ -296,104 +462,85 @@
             controlPanel.classList.remove('hidden');
             resultArea.classList.remove('hidden');
             emptyState.classList.add('hidden');
-            statusText.innerText = `解析成功，生成 ${parsedData.length} 条数据`;
+            statusText.innerText = `解析完成，生成 ${parsedRows.length} 条数据`;
 
-            parsedData.forEach((row, index) => {
+            parsedRows.forEach(row => {
                 const tr = document.createElement('tr');
                 tr.className = "border-b border-gray-100 hover:bg-blue-50/30 transition-colors";
                 tr.innerHTML = `
                     <td class="p-4 text-[var(--apple-text)] tabular-nums">${row.time}</td>
                     <td class="p-4 text-[var(--apple-text)] font-medium">${row.source}</td>
                     <td class="p-4 text-[var(--apple-text)]"><span class="bg-gray-100 px-2 py-1 rounded text-xs text-gray-600">${row.skill}</span></td>
-                    <td class="p-4 text-[var(--apple-text)] text-right font-bold tabular-nums">${row.rawDamage}</td>
+                    <td class="p-4 text-[var(--apple-text)] text-right font-bold tabular-nums">${row.displayDamage}</td>
                 `;
                 tableBody.appendChild(tr);
             });
         }
 
-        // 复制功能
         function copyResults() {
-            if (parsedData.length === 0) {
+            if (parsedRows.length === 0) {
                 showToast("没有数据可复制", "error");
                 return;
             }
-
-            // 构建 Header
-            let text = "时间\t伤害来源\t技能名称\t原始伤害\n";
-            // 构建 Rows
-            parsedData.forEach(row => {
-                text += `${row.time}\t${row.source}\t${row.skill}\t${row.rawDamage}\n`;
+            let text = "时间\t伤害来源\t技能名称\t实际伤害\n";
+            parsedRows.forEach(row => {
+                // 此时 displayDamage 已经没有 Tick 前缀了
+                text += `${row.time}\t${row.source}\t${row.skill}\t${row.displayDamage}\n`;
             });
 
-            // 执行复制
             const textarea = document.createElement('textarea');
             textarea.value = text;
             document.body.appendChild(textarea);
             textarea.select();
-            
             try {
                 document.execCommand('copy');
                 showToast("已复制到剪贴板");
             } catch (err) {
-                showToast("复制失败，请重试", "error");
+                showToast("复制失败", "error");
             }
-            
             document.body.removeChild(textarea);
         }
 
         function resetAll() {
-            parsedData = [];
+            parsedRows = [];
+            detectedPlayerName = "";
             fileInput.value = '';
             controlPanel.classList.add('hidden');
             resultArea.classList.add('hidden');
+            playerBadge.classList.add('hidden');
         }
 
-        // 交互逻辑
-        dropZone.addEventListener('click', () => fileInput.click());
+        // Event Listeners
+        if (dropZone && fileInput) {
+            dropZone.addEventListener('click', () => fileInput.click());
+            fileInput.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) processFile(e.target.files[0]);
+            });
+            dropZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropZone.classList.add('bg-blue-50', 'border-[var(--apple-blue)]');
+            });
+            dropZone.addEventListener('dragleave', (e) => {
+                e.preventDefault();
+                dropZone.classList.remove('bg-blue-50', 'border-[var(--apple-blue)]');
+            });
+            dropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropZone.classList.remove('bg-blue-50', 'border-[var(--apple-blue)]');
+                if (e.dataTransfer.files.length > 0) processFile(e.dataTransfer.files[0]);
+            });
+        }
 
-        fileInput.addEventListener('change', (e) => {
-            if (e.target.files.length > 0) {
-                processFile(e.target.files[0]);
-            }
-        });
-
-        // 拖拽支持
-        dropZone.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            dropZone.classList.add('bg-blue-50', 'border-[var(--apple-blue)]');
-        });
-
-        dropZone.addEventListener('dragleave', (e) => {
-            e.preventDefault();
-            dropZone.classList.remove('bg-blue-50', 'border-[var(--apple-blue)]');
-        });
-
-        dropZone.addEventListener('drop', (e) => {
-            e.preventDefault();
-            dropZone.classList.remove('bg-blue-50', 'border-[var(--apple-blue)]');
-            if (e.dataTransfer.files.length > 0) {
-                processFile(e.dataTransfer.files[0]);
-            }
-        });
-
-        // 提示框逻辑
         function showToast(message, type = 'success') {
             const toast = document.getElementById('toast');
             const msg = document.getElementById('toast-msg');
             const icon = toast.querySelector('i');
-            
             msg.innerText = message;
-            if (type === 'error') {
-                icon.className = 'ph ph-warning-circle text-red-400 text-lg';
-            } else {
-                icon.className = 'ph ph-check-circle text-green-400 text-lg';
-            }
-
-            toast.classList.remove('opacity-0', 'translate-y-10');
+            if (type === 'error') icon.className = 'ph ph-warning-circle text-red-400 text-lg';
+            else icon.className = 'ph ph-check-circle text-green-400 text-lg';
             
-            setTimeout(() => {
-                toast.classList.add('opacity-0', 'translate-y-10');
-            }, 2500);
+            toast.classList.remove('opacity-0', 'translate-y-10');
+            setTimeout(() => toast.classList.add('opacity-0', 'translate-y-10'), 2500);
         }
     </script>
 </body>
