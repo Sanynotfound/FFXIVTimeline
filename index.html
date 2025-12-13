@@ -71,7 +71,6 @@
     <!-- 顶部标题区域 -->
     <header class="w-full max-w-5xl text-center mb-8 fade-in-up" style="animation-delay: 0.1s;">
         <h1 class="text-3xl md:text-4xl font-bold tracking-tight mb-2">FFXIV日志解析工具</h1>
-        <!-- 3. 恢复副标题 -->
         <p class="text-[var(--apple-gray)] text-lg font-medium">上传 CSV 日志文件，自动提取关键伤害数据</p>
     </header>
 
@@ -88,7 +87,6 @@
                     </div>
                     <div>
                         <p class="text-lg font-semibold">点击或拖拽上传 CSV 文件</p>
-                        <!-- 4. 修改上传文案 -->
                         <p class="text-sm text-[var(--apple-gray)] mt-1">支持标准战斗日志格式</p>
                     </div>
                 </div>
@@ -140,13 +138,12 @@
             </div>
         </div>
 
-        <!-- 1. 使用说明卡片移动到底部，并与上方容器宽度一致 -->
+        <!-- 使用说明卡片 -->
         <div class="glass-card rounded-2xl p-4 md:p-6 text-left w-full border border-blue-100/50 fade-in-up" style="animation-delay: 0.3s;">
             <h3 class="text-sm font-bold text-[var(--apple-blue)] uppercase tracking-wide mb-2 flex items-center gap-2">
                 <i class="ph ph-info"></i> 使用说明
             </h3>
             <ol class="list-decimal list-inside text-sm text-[var(--apple-text)] space-y-1.5 leading-relaxed">
-                <!-- 2. 说明文本修改 -->
                 <li>打开 <span class="font-medium bg-gray-200 px-1 rounded">fflogs.com</span>，进入战斗记录页面。</li>
                 <li>点击 <span class="font-medium bg-gray-200 px-1 rounded">受到伤害 (Damage Taken)</span> 选项卡。</li>
                 <li>在 <span class="font-medium bg-gray-200 px-1 rounded">事件 (Events)</span> 视图中，筛选特定的单名玩家。</li>
@@ -203,7 +200,6 @@
             detectedPlayerName = "";
             knownSkills = new Set(["Combined DoTs"]);
             
-            // 简单的统计，以防有多个 on Target 的情况，取出现最多的
             const playerCounts = {};
 
             lines.forEach(line => {
@@ -211,8 +207,6 @@
                 if (cols.length < 2) return;
                 const eventStr = cols[1];
 
-                // 匹配: Source prepares Skill on Player ...
-                // 这里的正则假设 ... prepares (技能) on (玩家) 数字 ...
                 const prepMatch = eventStr.match(/ prepares\s+(.*?)\s+on\s+(.*?)\s+\d/);
                 if (prepMatch) {
                     const skill = prepMatch[1].trim();
@@ -223,7 +217,6 @@
                 }
             });
 
-            // 确定玩家名 (取出现次数最多的，或者唯一的)
             let maxCount = 0;
             for (const [player, count] of Object.entries(playerCounts)) {
                 if (count > maxCount) {
@@ -238,52 +231,85 @@
 
         // 步骤2: 解析单行 (核心逻辑)
         function parseLine(time, eventStr) {
-            // 必须有 U 值才是伤害行 (Combined DoTs 的 Summary 行也有 U，但我们稍后处理)
+            let rawU = 0;
+            let cutIndex = -1;
+
+            // 1. 尝试匹配标准 U 值
             const uMatch = eventStr.match(/\(U:\s*([\d,]+)/);
-            if (!uMatch) return null;
-            
-            const rawU = parseInt(uMatch[1].replace(/,/g, ''), 10);
+            // 2. 尝试匹配完全吸收 A 值
+            const aMatch = eventStr.match(/\(A:\s*([\d,]+)/);
 
-            // 移除 (U:...) 及其后面的内容，还有 (A:...)
-            // 例子: ... 11402 (A: 13986) (U: 34780)... -> ... 11402
-            let cleanStr = eventStr.split(/\(U:/)[0];
-            cleanStr = cleanStr.replace(/\(A:.*?\)/g, '').trim();
-
-            // 如果没有探测到玩家名，尝试最后的兜底逻辑(假设空格分割)
-            if (!detectedPlayerName) {
-                // 这是一个非常不安全的兜底，但在没 scan 到 prepares 时只能这样
-                const parts = cleanStr.split(/\s+/);
-                const damagePart = parts.pop();
-                const playerPart = parts.pop(); 
-                // 只能假设倒数第二个是玩家
-                return { time, source: "Unknown", skill: "Unknown", player: playerPart, rawU, isTick: damagePart.includes("Tick"), damageText: damagePart };
+            if (uMatch) {
+                // 情况A: 存在 U 值
+                rawU = parseInt(uMatch[1].replace(/,/g, ''), 10);
+            } else if (aMatch) {
+                // 情况B: 不存在 U 值，但有 A 值 (完全吸收)
+                const absorbed = parseInt(aMatch[1].replace(/,/g, ''), 10);
+                
+                // 检查是否有减伤百分比: --23% damage
+                const mitMatch = eventStr.match(/--(\d+)%\s+damage/);
+                
+                if (mitMatch) {
+                    const mitigation = parseInt(mitMatch[1], 10);
+                    // 反推公式: 原始 = 吸收 / (1 - 减伤比)
+                    const factor = (100 - mitigation) / 100;
+                    if (factor > 0) {
+                        rawU = Math.round(absorbed / factor);
+                    } else {
+                        rawU = absorbed;
+                    }
+                } else {
+                    // 如果没有减伤百分比，假设原始伤害 = 吸收伤害
+                    rawU = absorbed;
+                }
+            } else {
+                // 既没有 U 也没有 A，视为无效伤害行
+                return null;
             }
 
-            // 使用玩家名作为锚点进行分割
-            // Event: Source [prepares] Skill [on] Player Damage
-            // Combined: Multiple Enemies Combined DoTs Player Tick Damage
-            // Standard: Source Skill Player Damage
+            // 清理字符串，用于解析 来源 和 技能
+            // 寻找 stats block 的起始位置 (U: 或 (A:
+            const idxU = eventStr.indexOf('(U:');
+            const idxA = eventStr.indexOf('(A:');
             
-            // 我们只关心"输出行"，即没有 "prepares" 的行 (除了 Combined DoTs 的 summary 行)
-            // 但是 Combined DoTs 也没有 prepares。
-            
-            if (eventStr.includes(" prepares ")) return null; // 忽略准备行
+            if (idxU !== -1 && idxA !== -1) cutIndex = Math.min(idxU, idxA);
+            else if (idxU !== -1) cutIndex = idxU;
+            else if (idxA !== -1) cutIndex = idxA;
+
+            let cleanStr = "";
+            if (cutIndex !== -1) {
+                cleanStr = eventStr.substring(0, cutIndex).trim();
+            } else {
+                // 兜底分割
+                cleanStr = eventStr.split('(')[0].trim();
+            }
+
+            // 如果没有探测到玩家名，尝试兜底逻辑
+            if (!detectedPlayerName) {
+                const parts = cleanStr.split(/\s+/);
+                // 对于完全吸收的情况，末尾可能没有数字，所以这个兜底可能不准确，
+                // 但只要 preScan 工作正常，就不会进入这里。
+                const damagePart = parts.pop();
+                const playerPart = parts.pop(); 
+                return { time, source: "Unknown", skill: "Unknown", player: playerPart, rawU, isTick: false };
+            }
+
+            // 准备行直接跳过
+            if (eventStr.includes(" prepares ")) return null;
 
             // 寻找玩家名的位置
             const playerIndex = cleanStr.indexOf(detectedPlayerName);
-            if (playerIndex === -1) return null; // 这一行没有当前玩家，跳过
+            if (playerIndex === -1) return null;
 
             // 切割
             const leftPart = cleanStr.substring(0, playerIndex).trim(); // 来源 + 技能
-            const rightPart = cleanStr.substring(playerIndex + detectedPlayerName.length).trim(); // 伤害数值 (Tick xxx)
+            const rightPart = cleanStr.substring(playerIndex + detectedPlayerName.length).trim(); 
 
-            // 解析右边: 伤害
+            // 解析右边: 是否为 Tick
+            // 注意：完全吸收时 rightPart 可能是空字符串
             const isTick = rightPart.startsWith("Tick");
             
             // 解析左边: 来源 + 技能
-            // 难点: "Sugar Riot 13 Mousse Mural" -> Source: Sugar Riot 13, Skill: Mousse Mural
-            // 策略: 
-            // 1. 如果左边包含 "Multiple Enemies Combined DoTs"，这是特例
             if (leftPart.includes("Multiple Enemies Combined DoTs")) {
                 return {
                     time,
@@ -292,18 +318,16 @@
                     player: detectedPlayerName,
                     rawU: rawU,
                     isTick: true,
-                    isCombinedSummary: true // 标记这是总汇行
+                    isCombinedSummary: true
                 };
             }
 
-            // 2. 尝试从已知技能库匹配 (倒序匹配最长技能名)
+            // 尝试从已知技能库匹配
             let source = leftPart;
             let skill = "Unknown";
-            
             let foundSkill = false;
-            // 将 Set 转为 Array 并按长度倒序，防止 "Fire" 匹配了 "Fire III" 的一部分
-            const sortedSkills = Array.from(knownSkills).sort((a, b) => b.length - a.length);
             
+            const sortedSkills = Array.from(knownSkills).sort((a, b) => b.length - a.length);
             for (const s of sortedSkills) {
                 if (leftPart.endsWith(s)) {
                     skill = s;
@@ -313,14 +337,13 @@
                 }
             }
 
-            // 3. 如果没匹配到，使用简单的空格分割兜底 (取最后一个词为技能)
             if (!foundSkill) {
                 const parts = leftPart.split(/\s+/);
                 if (parts.length > 1) {
                     skill = parts.pop();
                     source = parts.join(" ");
                 } else {
-                    skill = leftPart; // 只有一个词，既是来源也是技能? 不太可能，暂且这样
+                    skill = leftPart;
                     source = "Unknown";
                 }
             }
@@ -341,13 +364,11 @@
                 const text = e.target.result;
                 const lines = text.split(/\r?\n/).filter(line => line.trim() !== "");
                 
-                // 跳过表头
                 let startIdx = 0;
                 if (lines[0] && lines[0].includes("Time")) startIdx = 1;
 
                 const dataLines = lines.slice(startIdx);
 
-                // Pass 1: Scan
                 preScanFile(dataLines);
 
                 if (detectedPlayerName) {
@@ -357,7 +378,6 @@
                     playerBadge.classList.add('hidden');
                 }
 
-                // Pass 2: Parse individual lines
                 let rawParsedEvents = [];
                 dataLines.forEach(line => {
                     const cols = parseCSVLine(line);
@@ -366,7 +386,6 @@
                     if (parsed) rawParsedEvents.push(parsed);
                 });
 
-                // Pass 3: Grouping & Combined DoTs Logic
                 parsedRows = processGroups(rawParsedEvents);
                 
                 renderTable();
@@ -374,11 +393,9 @@
             reader.readAsText(file, 'UTF-8');
         }
 
-        // 步骤3: 分组与聚合
         function processGroups(events) {
             const output = [];
-            // 按时间分组
-            const groups = {}; // { "00:00.000": [event1, event2...] }
+            const groups = {}; 
             
             events.forEach(ev => {
                 if (!groups[ev.time]) groups[ev.time] = [];
@@ -389,41 +406,32 @@
 
             uniqueTimes.forEach(time => {
                 const groupEvents = groups[time];
-                
-                // 检查是否有 Combined DoTs 的 Summary 行
                 const summaryEvent = groupEvents.find(e => e.isCombinedSummary);
 
                 if (summaryEvent) {
-                    // 如果有 Combined DoTs
-                    // 逻辑: 统计该组内所有 *其他* Tick 行的 U 值之和
                     let totalU = 0;
-                    
                     groupEvents.forEach(e => {
                         if (!e.isCombinedSummary && e.isTick) {
                             totalU += e.rawU;
                         }
                     });
 
-                    // 构造新的输出行
                     const finalU = totalU > 0 ? totalU : summaryEvent.rawU;
 
                     output.push({
                         time: time,
                         source: "Multiple Enemies",
                         skill: "Combined DoTs",
-                        // 5. 不显示 Tick 前缀，仅显示数值
                         displayDamage: `${finalU}`,
                         rawU: finalU
                     });
 
-                    // 如果组内有 非Tick 的事件 (例如同时吃了一个直伤AOE)，保留
                     groupEvents.forEach(e => {
                         if (!e.isCombinedSummary && !e.isTick) {
                             output.push({
                                 time: e.time,
                                 source: e.source,
                                 skill: e.skill,
-                                // 5. 不显示 Tick 前缀，仅显示数值
                                 displayDamage: `${e.rawU}`,
                                 rawU: e.rawU
                             });
@@ -431,13 +439,11 @@
                     });
 
                 } else {
-                    // 没有 Combined DoTs，正常输出所有行
                     groupEvents.forEach(e => {
                         output.push({
                             time: e.time,
                             source: e.source,
                             skill: e.skill,
-                            // 5. 不显示 Tick 前缀，仅显示数值 (即使是 Tick 行)
                             displayDamage: `${e.rawU}`,
                             rawU: e.rawU
                         });
@@ -484,7 +490,6 @@
             }
             let text = "时间\t伤害来源\t技能名称\t实际伤害\n";
             parsedRows.forEach(row => {
-                // 此时 displayDamage 已经没有 Tick 前缀了
                 text += `${row.time}\t${row.source}\t${row.skill}\t${row.displayDamage}\n`;
             });
 
