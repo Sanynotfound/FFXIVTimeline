@@ -78,6 +78,39 @@
             background-color: rgba(0, 113, 227, 0.1);
             color: var(--apple-blue);
         }
+
+        /* Checkbox Custom Style */
+        .custom-checkbox {
+            appearance: none;
+            background-color: #fff;
+            margin: 0;
+            font: inherit;
+            color: currentColor;
+            width: 1.15em;
+            height: 1.15em;
+            border: 1px solid #d1d5db;
+            border-radius: 0.25em;
+            display: grid;
+            place-content: center;
+            transition: all 0.2s ease;
+        }
+        .custom-checkbox::before {
+            content: "";
+            width: 0.65em;
+            height: 0.65em;
+            transform: scale(0);
+            transition: 120ms transform ease-in-out;
+            box-shadow: inset 1em 1em white;
+            transform-origin: center;
+            clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+        }
+        .custom-checkbox:checked {
+            background-color: var(--apple-blue);
+            border-color: var(--apple-blue);
+        }
+        .custom-checkbox:checked::before {
+            transform: scale(1);
+        }
     </style>
 </head>
 <body class="min-h-screen flex flex-col items-center py-8 px-4 sm:px-6">
@@ -108,23 +141,51 @@
         </div>
 
         <!-- 结果控制栏 -->
-        <div id="control-panel" class="hidden flex flex-col sm:flex-row gap-4 justify-between items-center glass-card rounded-2xl p-4 fade-in-up">
-            <div class="flex flex-col sm:flex-row items-center gap-2 sm:gap-4 text-sm text-[var(--apple-gray)]">
-                <div class="flex items-center gap-1">
-                    <i class="ph ph-check-circle text-green-500 text-lg"></i>
-                    <span id="status-text">解析完成</span>
+        <div id="control-panel" class="hidden flex flex-col gap-4 glass-card rounded-2xl p-4 fade-in-up">
+            <!-- 上半部分：状态与操作按钮 -->
+            <div class="flex flex-col sm:flex-row justify-between items-center gap-4 border-b border-gray-100 pb-4">
+                <div class="flex flex-col sm:flex-row items-center gap-2 sm:gap-4 text-sm text-[var(--apple-gray)]">
+                    <div class="flex items-center gap-1">
+                        <i class="ph ph-check-circle text-green-500 text-lg"></i>
+                        <span id="status-text">解析完成</span>
+                    </div>
+                    <div id="player-badge" class="hidden px-2 py-0.5 bg-blue-100 text-blue-700 rounded-md font-medium text-xs">
+                        玩家: <span id="player-name-display">--</span>
+                    </div>
                 </div>
-                <div id="player-badge" class="hidden px-2 py-0.5 bg-blue-100 text-blue-700 rounded-md font-medium text-xs">
-                    玩家: <span id="player-name-display">--</span>
+                <div class="flex gap-3 w-full sm:w-auto">
+                    <button onclick="resetAll()" class="btn-secondary flex-1 sm:flex-none px-6 py-2.5 rounded-full font-medium text-sm flex items-center justify-center gap-2">
+                        <i class="ph ph-trash"></i> 重置
+                    </button>
+                    <button onclick="copyResults()" class="btn-primary flex-1 sm:flex-none px-6 py-2.5 rounded-full font-medium text-sm flex items-center justify-center gap-2 shadow-lg shadow-blue-500/30">
+                        <i class="ph ph-copy"></i> 复制筛选结果
+                    </button>
                 </div>
             </div>
-            <div class="flex gap-3 w-full sm:w-auto">
-                <button onclick="resetAll()" class="btn-secondary flex-1 sm:flex-none px-6 py-2.5 rounded-full font-medium text-sm flex items-center justify-center gap-2">
-                    <i class="ph ph-trash"></i> 重置
-                </button>
-                <button onclick="copyResults()" class="btn-primary flex-1 sm:flex-none px-6 py-2.5 rounded-full font-medium text-sm flex items-center justify-center gap-2 shadow-lg shadow-blue-500/30">
-                    <i class="ph ph-copy"></i> 复制全部结果
-                </button>
+
+            <!-- 下半部分：筛选器 -->
+            <div class="flex flex-wrap items-center gap-2 sm:gap-6 text-sm">
+                <span class="font-semibold text-[var(--apple-gray)] text-xs uppercase tracking-wide">伤害筛选:</span>
+                
+                <label class="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity select-none">
+                    <input type="checkbox" class="custom-checkbox" value="单次" checked onchange="updateFilters()">
+                    <span class="px-2 py-0.5 rounded text-blue-700 bg-blue-100 border border-blue-200 text-xs font-semibold">单次</span>
+                </label>
+
+                <label class="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity select-none">
+                    <input type="checkbox" class="custom-checkbox" value="连续" checked onchange="updateFilters()">
+                    <span class="px-2 py-0.5 rounded text-orange-700 bg-orange-100 border border-orange-200 text-xs font-semibold">连续</span>
+                </label>
+
+                <label class="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity select-none">
+                    <input type="checkbox" class="custom-checkbox" value="DoTs" checked onchange="updateFilters()">
+                    <span class="px-2 py-0.5 rounded text-purple-700 bg-purple-100 border border-purple-200 text-xs font-semibold">DoTs</span>
+                </label>
+
+                <label class="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity select-none">
+                    <input type="checkbox" class="custom-checkbox" value="普攻" checked onchange="updateFilters()">
+                    <span class="px-2 py-0.5 rounded text-gray-600 bg-gray-100 border border-gray-200 text-xs font-semibold">普攻</span>
+                </label>
             </div>
         </div>
 
@@ -138,7 +199,7 @@
                             <th class="p-4 text-xs font-bold uppercase tracking-wider text-[var(--apple-gray)] w-32">
                                 <div class="flex items-center gap-1">
                                     时间
-                                    <button onclick="copyColumn('time', event)" class="copy-icon-btn" title="仅复制时间列">
+                                    <button onclick="copyColumn('time', event)" class="copy-icon-btn" title="仅复制筛选后的时间">
                                         <i class="ph ph-copy text-sm"></i>
                                     </button>
                                 </div>
@@ -147,7 +208,7 @@
                             <th class="p-4 text-xs font-bold uppercase tracking-wider text-[var(--apple-gray)]">
                                 <div class="flex items-center gap-1">
                                     伤害来源
-                                    <button onclick="copyColumn('source', event)" class="copy-icon-btn" title="仅复制伤害来源">
+                                    <button onclick="copyColumn('source', event)" class="copy-icon-btn" title="仅复制筛选后的来源">
                                         <i class="ph ph-copy text-sm"></i>
                                     </button>
                                 </div>
@@ -156,16 +217,25 @@
                             <th class="p-4 text-xs font-bold uppercase tracking-wider text-[var(--apple-gray)]">
                                 <div class="flex items-center gap-1">
                                     技能名称
-                                    <button onclick="copyColumn('skill', event)" class="copy-icon-btn" title="仅复制技能名称">
+                                    <button onclick="copyColumn('skill', event)" class="copy-icon-btn" title="仅复制筛选后的技能名">
+                                        <i class="ph ph-copy text-sm"></i>
+                                    </button>
+                                </div>
+                            </th>
+                            <!-- 伤害类型列 (新增) -->
+                            <th class="p-4 text-xs font-bold uppercase tracking-wider text-[var(--apple-gray)] w-28">
+                                <div class="flex items-center gap-1">
+                                    类型
+                                    <button onclick="copyColumn('type', event)" class="copy-icon-btn" title="仅复制筛选后的类型">
                                         <i class="ph ph-copy text-sm"></i>
                                     </button>
                                 </div>
                             </th>
                             <!-- 实际伤害列 -->
-                            <th class="p-4 text-xs font-bold uppercase tracking-wider text-[var(--apple-gray)] text-right">
+                            <th class="p-4 text-xs font-bold uppercase tracking-wider text-[var(--apple-gray)] text-right w-32">
                                 <div class="flex items-center justify-end gap-1">
                                     实际伤害
-                                    <button onclick="copyColumn('damage', event)" class="copy-icon-btn mr-1" title="仅复制伤害数值">
+                                    <button onclick="copyColumn('damage', event)" class="copy-icon-btn mr-1" title="仅复制筛选后的数值">
                                         <i class="ph ph-copy text-sm"></i>
                                     </button>
                                 </div>
@@ -181,6 +251,11 @@
             <div id="empty-state" class="hidden p-12 text-center text-[var(--apple-gray)]">
                 <i class="ph ph-magnifying-glass text-4xl mb-2 opacity-50"></i>
                 <p>未找到符合格式的伤害数据</p>
+            </div>
+            <!-- 筛选后无数据状态 -->
+            <div id="no-filter-data" class="hidden p-12 text-center text-[var(--apple-gray)]">
+                <i class="ph ph-funnel-x text-4xl mb-2 opacity-50"></i>
+                <p>当前筛选条件下无数据</p>
             </div>
         </div>
 
@@ -201,7 +276,7 @@
     </main>
 
     <footer class="mt-auto py-8 text-center text-xs text-[var(--apple-gray)] opacity-60">
-        <p>发芽土豆🌱 · 日志可能存在偏差，请以副本内实际数据为准。</p>
+        <p>发芽黑点🌱 · 日志可能存在偏差，请以副本内实际数据为准。</p>
     </footer>
 
     <!-- Toast -->
@@ -211,9 +286,12 @@
     </div>
 
     <script>
-        let parsedRows = [];
+        let parsedRows = []; // 存储所有解析后的数据（含type）
         let detectedPlayerName = "";
-        let knownSkills = new Set(["Combined DoTs"]); // 预设系统技能名
+        let knownSkills = new Set(["Combined DoTs"]);
+        
+        // 筛选状态
+        let activeFilters = new Set(["普攻", "DoTs", "连续", "单次"]);
 
         const fileInput = document.getElementById('file-input');
         const dropZone = document.getElementById('drop-zone');
@@ -222,6 +300,7 @@
         const tableBody = document.getElementById('result-table-body');
         const statusText = document.getElementById('status-text');
         const emptyState = document.getElementById('empty-state');
+        const noFilterData = document.getElementById('no-filter-data');
         const playerBadge = document.getElementById('player-badge');
         const playerNameDisplay = document.getElementById('player-name-display');
 
@@ -239,6 +318,14 @@
             }
             result.push(cell);
             return result.map(c => c.replace(/^"|"$/g, '').trim());
+        }
+
+        // 辅助：将时间字符串 "mm:ss.ms" 转换为秒数 (float)
+        function timeToSeconds(timeStr) {
+            if (!timeStr) return 0;
+            const parts = timeStr.split(':');
+            if (parts.length !== 2) return 0;
+            return parseFloat(parts[0]) * 60 + parseFloat(parts[1]);
         }
 
         // 步骤1: 预扫描 - 寻找玩家ID和技能库
@@ -275,29 +362,23 @@
             console.log("Learned Skills:", knownSkills);
         }
 
-        // 步骤2: 解析单行 (核心逻辑)
+        // 步骤2: 解析单行
         function parseLine(time, eventStr) {
             let rawU = 0;
             let cutIndex = -1;
+            let specialStatus = null; // New: 存储特殊状态 (Immune/Invalid)
 
-            // 1. 尝试匹配标准 U 值
             const uMatch = eventStr.match(/\(U:\s*([\d,]+)/);
-            // 2. 尝试匹配完全吸收 A 值
             const aMatch = eventStr.match(/\(A:\s*([\d,]+)/);
 
             if (uMatch) {
-                // 情况A: 存在 U 值
                 rawU = parseInt(uMatch[1].replace(/,/g, ''), 10);
             } else if (aMatch) {
-                // 情况B: 不存在 U 值，但有 A 值 (完全吸收)
                 const absorbed = parseInt(aMatch[1].replace(/,/g, ''), 10);
-                
-                // 检查是否有减伤百分比: --23% damage
                 const mitMatch = eventStr.match(/--(\d+)%\s+damage/);
                 
                 if (mitMatch) {
                     const mitigation = parseInt(mitMatch[1], 10);
-                    // 反推公式: 原始 = 吸收 / (1 - 减伤比)
                     const factor = (100 - mitigation) / 100;
                     if (factor > 0) {
                         rawU = Math.round(absorbed / factor);
@@ -305,70 +386,88 @@
                         rawU = absorbed;
                     }
                 } else {
-                    // 如果没有减伤百分比，假设原始伤害 = 吸收伤害
                     rawU = absorbed;
                 }
             } else {
-                // 既没有 U 也没有 A，视为无效伤害行
-                return null;
+                // 新增：如果找不到 U/A，检查是否有 Immune 或 Invalid 格式
+                if (eventStr.includes("Immune")) {
+                    specialStatus = "Immune";
+                } else if (eventStr.match(/--\d+%\s+damage/)) {
+                    specialStatus = "Invalid";
+                } else {
+                    return null; // 无法解析的行
+                }
             }
 
-            // 清理字符串，用于解析 来源 和 技能
-            // 寻找 stats block 的起始位置 (U: 或 (A:
-            const idxU = eventStr.indexOf('(U:');
-            const idxA = eventStr.indexOf('(A:');
-            
-            if (idxU !== -1 && idxA !== -1) cutIndex = Math.min(idxU, idxA);
-            else if (idxU !== -1) cutIndex = idxU;
-            else if (idxA !== -1) cutIndex = idxA;
-
+            // 清理字符串以提取技能名
             let cleanStr = "";
-            if (cutIndex !== -1) {
-                cleanStr = eventStr.substring(0, cutIndex).trim();
+            
+            if (uMatch || aMatch) {
+                // 现有的截取逻辑
+                const idxU = eventStr.indexOf('(U:');
+                const idxA = eventStr.indexOf('(A:');
+                
+                if (idxU !== -1 && idxA !== -1) cutIndex = Math.min(idxU, idxA);
+                else if (idxU !== -1) cutIndex = idxU;
+                else if (idxA !== -1) cutIndex = idxA;
+
+                if (cutIndex !== -1) {
+                    cleanStr = eventStr.substring(0, cutIndex).trim();
+                } else {
+                    cleanStr = eventStr.split('(')[0].trim();
+                }
             } else {
-                // 兜底分割
-                cleanStr = eventStr.split('(')[0].trim();
+                // 特殊状态的清理逻辑
+                cleanStr = eventStr;
+                if (specialStatus === "Immune") {
+                    cleanStr = cleanStr.replace(/Immune/g, ""); // 移除 Immune
+                }
+                if (specialStatus === "Invalid") {
+                    cleanStr = cleanStr.replace(/--\d+%\s+damage/g, ""); // 移除 --30% damage
+                }
+                cleanStr = cleanStr.trim();
             }
 
-            // 如果没有探测到玩家名，尝试兜底逻辑
             if (!detectedPlayerName) {
                 const parts = cleanStr.split(/\s+/);
-                // 对于完全吸收的情况，末尾可能没有数字，所以这个兜底可能不准确，
-                // 但只要 preScan 工作正常，就不会进入这里。
                 const damagePart = parts.pop();
                 const playerPart = parts.pop(); 
-                return { time, source: "Unknown", skill: "Unknown", player: playerPart, rawU, isTick: false };
+                return { 
+                    time, 
+                    timeSec: timeToSeconds(time), 
+                    source: "Unknown", 
+                    skill: "Unknown", 
+                    player: playerPart, 
+                    rawU, 
+                    isTick: false,
+                    specialStatus 
+                };
             }
 
-            // 准备行直接跳过
             if (eventStr.includes(" prepares ")) return null;
 
-            // 寻找玩家名的位置
             const playerIndex = cleanStr.indexOf(detectedPlayerName);
             if (playerIndex === -1) return null;
 
-            // 切割
-            const leftPart = cleanStr.substring(0, playerIndex).trim(); // 来源 + 技能
+            const leftPart = cleanStr.substring(0, playerIndex).trim();
             const rightPart = cleanStr.substring(playerIndex + detectedPlayerName.length).trim(); 
 
-            // 解析右边: 是否为 Tick
-            // 注意：完全吸收时 rightPart 可能是空字符串
             const isTick = rightPart.startsWith("Tick");
             
-            // 解析左边: 来源 + 技能
             if (leftPart.includes("Multiple Enemies Combined DoTs")) {
                 return {
                     time,
+                    timeSec: timeToSeconds(time),
                     source: "Multiple Enemies",
                     skill: "Combined DoTs",
                     player: detectedPlayerName,
                     rawU: rawU,
                     isTick: true,
-                    isCombinedSummary: true
+                    isCombinedSummary: true,
+                    specialStatus
                 };
             }
 
-            // 尝试从已知技能库匹配
             let source = leftPart;
             let skill = "Unknown";
             let foundSkill = false;
@@ -396,12 +495,78 @@
 
             return {
                 time,
+                timeSec: timeToSeconds(time), // 增加秒数方便后续计算
                 source,
                 skill,
                 player: detectedPlayerName,
                 rawU,
-                isTick
+                isTick,
+                specialStatus // 返回特殊状态
             };
+        }
+
+        // 新增逻辑：分配伤害类型
+        function assignDamageTypes(rows) {
+            // 先处理显式类型 (普攻, DoTs)
+            rows.forEach(row => {
+                if (row.skill === "Combined DoTs") {
+                    row.damageType = "DoTs";
+                } else if (row.skill === "攻击" || row.skill === "Attack") {
+                    row.damageType = "普攻";
+                } else {
+                    row.damageType = "Unknown"; // 待判定
+                }
+            });
+
+            // 针对 Unknown 类型，按 技能名 分组进行时间聚类分析
+            const skillGroups = {};
+            rows.forEach(row => {
+                if (row.damageType === "Unknown") {
+                    if (!skillGroups[row.skill]) skillGroups[row.skill] = [];
+                    skillGroups[row.skill].push(row);
+                }
+            });
+
+            // 遍历每个技能组
+            for (const skillName in skillGroups) {
+                const events = skillGroups[skillName];
+                // 确保按时间排序 (解析时已经是顺序，但为了保险)
+                events.sort((a, b) => a.timeSec - b.timeSec);
+
+                if (events.length === 0) continue;
+
+                // 聚类算法
+                let currentCluster = [events[0]];
+                const clusters = [];
+
+                for (let i = 1; i < events.length; i++) {
+                    const prevEvent = currentCluster[currentCluster.length - 1];
+                    const currEvent = events[i];
+
+                    // 间隔 <= 5s 视为同一连续组
+                    if ((currEvent.timeSec - prevEvent.timeSec) <= 5.0) {
+                        currentCluster.push(currEvent);
+                    } else {
+                        // 间隔 > 5s，结束当前组，开启新组
+                        clusters.push(currentCluster);
+                        currentCluster = [currEvent];
+                    }
+                }
+                clusters.push(currentCluster); // 推入最后一组
+
+                // 标记类型
+                clusters.forEach(cluster => {
+                    if (cluster.length > 1) {
+                        // 连续伤害
+                        cluster.forEach(e => e.damageType = "连续");
+                    } else {
+                        // 单次伤害
+                        cluster[0].damageType = "单次";
+                    }
+                });
+            }
+
+            return rows;
         }
 
         function processFile(file) {
@@ -432,7 +597,11 @@
                     if (parsed) rawParsedEvents.push(parsed);
                 });
 
-                parsedRows = processGroups(rawParsedEvents);
+                // 处理 DoT 合并逻辑
+                let processedEvents = processGroups(rawParsedEvents);
+                
+                // 处理伤害类型分类逻辑
+                parsedRows = assignDamageTypes(processedEvents);
                 
                 renderTable();
             };
@@ -463,23 +632,34 @@
                     });
 
                     const finalU = totalU > 0 ? totalU : summaryEvent.rawU;
+                    
+                    // 逻辑：如果最终伤害为0且Summary有特殊状态，则显示特殊状态
+                    let displayDmg = `${finalU}`;
+                    if (finalU === 0 && summaryEvent.specialStatus) {
+                        displayDmg = summaryEvent.specialStatus;
+                    }
 
                     output.push({
                         time: time,
+                        timeSec: timeToSeconds(time),
                         source: "Multiple Enemies",
                         skill: "Combined DoTs",
-                        displayDamage: `${finalU}`,
-                        rawU: finalU
+                        displayDamage: displayDmg,
+                        rawU: finalU,
+                        specialStatus: summaryEvent.specialStatus
+                        // 类型将在后续步骤分配
                     });
 
                     groupEvents.forEach(e => {
                         if (!e.isCombinedSummary && !e.isTick) {
                             output.push({
                                 time: e.time,
+                                timeSec: e.timeSec,
                                 source: e.source,
                                 skill: e.skill,
-                                displayDamage: `${e.rawU}`,
-                                rawU: e.rawU
+                                displayDamage: e.specialStatus ? e.specialStatus : `${e.rawU}`,
+                                rawU: e.rawU,
+                                specialStatus: e.specialStatus
                             });
                         }
                     });
@@ -488,10 +668,12 @@
                     groupEvents.forEach(e => {
                         output.push({
                             time: e.time,
+                            timeSec: e.timeSec,
                             source: e.source,
                             skill: e.skill,
-                            displayDamage: `${e.rawU}`,
-                            rawU: e.rawU
+                            displayDamage: e.specialStatus ? e.specialStatus : `${e.rawU}`,
+                            rawU: e.rawU,
+                            specialStatus: e.specialStatus
                         });
                     });
                 }
@@ -500,10 +682,34 @@
             return output;
         }
 
-        // 辅助函数：格式化时间显示 (去除毫秒)
         function formatTimeDisplay(timeStr) {
             if (!timeStr) return "";
             return timeStr.split('.')[0];
+        }
+
+        function getDamageTypeStyle(type) {
+            switch(type) {
+                case '单次':
+                    // 修改：从红色改为较柔和的蓝色
+                    return 'bg-blue-50 text-blue-600 border-blue-200';
+                case '连续':
+                    return 'bg-orange-100 text-orange-700 border-orange-200';
+                case 'DoTs':
+                    return 'bg-purple-100 text-purple-700 border-purple-200';
+                case '普攻':
+                    return 'bg-gray-100 text-gray-600 border-gray-200';
+                default:
+                    return 'bg-gray-50 text-gray-500 border-gray-100';
+            }
+        }
+
+        function updateFilters() {
+            activeFilters.clear();
+            const checkboxes = document.querySelectorAll('.custom-checkbox');
+            checkboxes.forEach(cb => {
+                if (cb.checked) activeFilters.add(cb.value);
+            });
+            renderTable();
         }
 
         function renderTable() {
@@ -513,48 +719,69 @@
                 controlPanel.classList.remove('hidden');
                 resultArea.classList.remove('hidden');
                 emptyState.classList.remove('hidden');
+                noFilterData.classList.add('hidden');
                 statusText.innerText = "未找到符合的数据";
                 return;
             }
 
+            const visibleRows = parsedRows.filter(row => activeFilters.has(row.damageType));
+
             controlPanel.classList.remove('hidden');
             resultArea.classList.remove('hidden');
             emptyState.classList.add('hidden');
-            statusText.innerText = `解析完成，生成 ${parsedRows.length} 条数据`;
+            
+            if (visibleRows.length === 0) {
+                noFilterData.classList.remove('hidden');
+                statusText.innerText = `筛选结果: 0 / ${parsedRows.length} 条`;
+            } else {
+                noFilterData.classList.add('hidden');
+                statusText.innerText = `显示 ${visibleRows.length} 条 (共 ${parsedRows.length} 条)`;
+            }
 
-            parsedRows.forEach(row => {
+            visibleRows.forEach(row => {
                 const tr = document.createElement('tr');
                 tr.className = "border-b border-gray-100 hover:bg-blue-50/30 transition-colors";
-                // 使用优化后的时间显示
                 const displayTime = formatTimeDisplay(row.time);
+                const typeStyle = getDamageTypeStyle(row.damageType);
                 
+                // 处理特殊伤害显示的样式
+                let damageTextClass = "text-[var(--apple-text)]";
+                if (row.displayDamage === "Immune") {
+                    damageTextClass = "text-red-800 font-bold";
+                } else if (row.displayDamage === "Invalid") {
+                    damageTextClass = "text-gray-400 italic";
+                }
+
                 tr.innerHTML = `
                     <td class="p-4 text-[var(--apple-text)] tabular-nums">${displayTime}</td>
                     <td class="p-4 text-[var(--apple-text)] font-medium">${row.source}</td>
                     <td class="p-4 text-[var(--apple-text)]"><span class="bg-gray-100 px-2 py-1 rounded text-xs text-gray-600">${row.skill}</span></td>
-                    <td class="p-4 text-[var(--apple-text)] text-right font-bold tabular-nums">${row.displayDamage}</td>
+                    <td class="p-4 text-[var(--apple-text)]">
+                        <span class="px-2 py-1 rounded text-xs font-semibold border ${typeStyle}">
+                            ${row.damageType}
+                        </span>
+                    </td>
+                    <td class="p-4 ${damageTextClass} text-right font-bold tabular-nums">${row.displayDamage}</td>
                 `;
                 tableBody.appendChild(tr);
             });
         }
 
-        // 复制单列数据的函数
         function copyColumn(type, event) {
-            // 阻止事件冒泡，防止触发潜在的其他点击事件
             if(event) event.stopPropagation();
 
-            if (parsedRows.length === 0) {
-                showToast("没有数据可复制", "error");
+            const visibleRows = parsedRows.filter(row => activeFilters.has(row.damageType));
+            
+            if (visibleRows.length === 0) {
+                showToast("没有可见数据可复制", "error");
                 return;
             }
 
             let text = "";
-            // 根据类型选择数据
-            parsedRows.forEach(row => {
+            visibleRows.forEach(row => {
                 let content = "";
                 switch(type) {
                     case 'time':
-                        // 复制单列时间时也使用简化格式
                         content = formatTimeDisplay(row.time);
                         break;
                     case 'source':
@@ -563,6 +790,9 @@
                     case 'skill':
                         content = row.skill;
                         break;
+                    case 'type':
+                        content = row.damageType;
+                        break;
                     case 'damage':
                         content = row.displayDamage;
                         break;
@@ -570,10 +800,9 @@
                 text += `${content}\n`;
             });
 
-            performCopy(text, `已复制${type === 'time' ? '时间' : type === 'source' ? '来源' : type === 'skill' ? '技能名' : '伤害值'}列`);
+            performCopy(text, `已复制筛选后的${type === 'time' ? '时间' : type === 'source' ? '来源' : type === 'skill' ? '技能名' : type === 'type' ? '类型' : '伤害值'}列`);
         }
 
-        // 通用复制执行函数
         function performCopy(text, successMsg) {
             const textarea = document.createElement('textarea');
             textarea.value = text;
@@ -589,17 +818,18 @@
         }
 
         function copyResults() {
-            if (parsedRows.length === 0) {
-                showToast("没有数据可复制", "error");
+            const visibleRows = parsedRows.filter(row => activeFilters.has(row.damageType));
+
+            if (visibleRows.length === 0) {
+                showToast("没有可见数据可复制", "error");
                 return;
             }
-            let text = "时间\t伤害来源\t技能名称\t实际伤害\n";
-            parsedRows.forEach(row => {
-                // 完整复制时，时间也使用简化格式以保持一致
-                text += `${formatTimeDisplay(row.time)}\t${row.source}\t${row.skill}\t${row.displayDamage}\n`;
+            let text = "时间\t伤害来源\t技能名称\t伤害类型\t实际伤害\n";
+            visibleRows.forEach(row => {
+                text += `${formatTimeDisplay(row.time)}\t${row.source}\t${row.skill}\t${row.damageType}\t${row.displayDamage}\n`;
             });
 
-            performCopy(text, "已复制全部结果");
+            performCopy(text, "已复制筛选结果");
         }
 
         function resetAll() {
@@ -609,6 +839,11 @@
             controlPanel.classList.add('hidden');
             resultArea.classList.add('hidden');
             playerBadge.classList.add('hidden');
+            
+            // 重置筛选
+            const checkboxes = document.querySelectorAll('.custom-checkbox');
+            checkboxes.forEach(cb => cb.checked = true);
+            activeFilters = new Set(["普攻", "DoTs", "连续", "单次"]);
         }
 
         // Event Listeners
